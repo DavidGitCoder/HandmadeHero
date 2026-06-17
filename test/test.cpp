@@ -166,11 +166,20 @@ int CALLBACK WinMain(
 	x = ~x; // NOT: inverses the bits
 
 	// XOR
-	x = (1 << 4) | (1<<8);
+	x = (1 << 4) | (1 << 8);
 	y = (1 << 8) | (1 << 16);
 	x = x ^ y; // will remove the bit that's at the same position in both operands
 	x = x ^ y; // doing 2 XORs will invert the previous XOR and you'll get the original value back
 
+	// DEREFERECING A POINTER
+	// to get the value of an address the pointer is pointing to:
+	int x = 5;
+	int* ptr = &x;
+	int y = (*ptr); // y = 5
+
+	// POINTER OF POINTER
+	int** ptrptr = &ptr;
+	y = (**ptrptr);
 
 
 }
