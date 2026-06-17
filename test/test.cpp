@@ -13,7 +13,7 @@ void foo(void) { // Function signature or prototype
 		"This is the first thing we have actually printed.\r");
 	printf("\n");*/
 	int FooVariable;
-	FooVariable= 200;
+	FooVariable = 200;
 	bar();
 
 }
@@ -33,8 +33,8 @@ struct projectile
 	// BUT
 	// the compiler will pack things more neatly like in this instance:
 	// the size will be thus 6 bytes: 2 + 2 + 1 + 1
-	// the only caveat is that the smaller types have to come last, if not, the total size will be 8 bytes
-	
+	// the only caveat is that the smaller types have to come last or they have to be aligned, if not, the total size will be 8 bytes
+
 	//struct projectile
 	//{
 	//	short unsigned IsThisOnFire;
@@ -60,7 +60,7 @@ int CALLBACK WinMain(
 	int LargeS; //32 bit ~4 billion
 	int unsigned LargeU;
 	*/
-	
+
 	// HEXADECIMALS
 		// 0x006ffc4c
 		//0 - 0
@@ -102,7 +102,7 @@ int CALLBACK WinMain(
 	Test.HowManyCooks = 4;
 
 
-	unsigned short* MrPointerMan = (unsigned short*) &Test;
+	unsigned short* MrPointerMan = (unsigned short*)&Test;
 
 	projectile Projectiles[40]; // arrays are pointers
 	projectile* ProjectilePointer = Projectiles; // so no & needed
@@ -113,15 +113,44 @@ int CALLBACK WinMain(
 	Projectiles[30].Damage = 60;
 	// C automatically multiplies 30 by the number of bytes 
 	//the type is using, so here is  30*16=480 bytes down from the start of ProjectilePointer
-	(ProjectilePointer + 30)->Damage = 100; 
+	(ProjectilePointer + 30)->Damage = 100;
 
 	// (char *) forces C to treat ProjectilePointer as if it were pointing to a 1 byte (8 bits) data
-	((projectile *)((char *)ProjectilePointer + 30 * sizeof(projectile)))->Damage=200; // force
+	((projectile*)((char*)ProjectilePointer + 30 * sizeof(projectile)))->Damage = 200; // force
 
 	char* BytePointer = (char*)ProjectilePointer;
 	BytePointer = BytePointer + 30 * sizeof(projectile);
 	projectile* Thirty = (projectile*)BytePointer;
 	Thirty->Damage = 300; // arrow is to access a fiedld from a  pointer, otherwise use a dot
+
+	unsigned int i = 1;
+	char* c = (char*)&i;
+
+	int x = 1;
+	int y = 10;
+	int z = 12;
+
+	x = -y + z + x * z + y / z - z;
+
+	// bit operations
+
+	x = 0x05; //10
+
+	// SHIFTING to the LEFT: MULTIPLIES by 2 to the POWER of the number of bits to shift
+	// SHIFTING to the RIGHT: DIVIDES by 2 to the POWER of the number of bits to shift
+
+	x = x << 1; // move it 4 bits to left 2^4=16*10=160
+	x = x >> 1; // move it 4 bits to right 2^4=160/16=10
+	x = x << 1;
+	x = x >> 1;
+	x = x << 1;
+	x = x >> 1;
+	x = x << 1;
+	x = x << 1;
+
+
+
+
 
 }
 
