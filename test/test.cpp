@@ -132,7 +132,7 @@ int CALLBACK WinMain(
 
 	x = -y + z + x * z + y / z - z;
 
-	// bit operations
+	// BITSHIFT OPERATORS
 
 	x = 0x05; //10
 
@@ -148,7 +148,28 @@ int CALLBACK WinMain(
 	x = x << 1;
 	x = x << 1;
 
+	// BITWISE OPERATORS: OR, AND, NOT, XOR
+	x = 0;
+	x = x | (1 << 4); // Combines bits
+	x = x | (1 << 3);
+	x = x | (1 << 14); // Masks (removes other bits) and keeps the bits set in position
+	x = x | (1 << 19);
+	x = x | (1 << 23);
+	x = x | (1 << 30);
+	x = x | (1 << 1);
+	x = x | (1 << 8);
 
+	y = ((1 << 4) | (1 << 31)); // combines the 4th and 31st bit to use as a mask
+	x = x & y; // y is the mask
+
+
+	x = ~x; // NOT: inverses the bits
+
+	// XOR
+	x = (1 << 4) | (1<<8);
+	y = (1 << 8) | (1 << 16);
+	x = x ^ y; // will remove the bit that's at the same position in both operands
+	x = x ^ y; // doing 2 XORs will invert the previous XOR and you'll get the original value back
 
 
 
