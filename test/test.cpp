@@ -17,6 +17,7 @@ void foo(void) { // Function signature or prototype
 	bar();
 
 }
+
 struct projectile
 {
 	// NOTE: These are the members, or "fields" of this structure
@@ -28,6 +29,19 @@ struct projectile
 	// 1 byte + 4 bytes + 4 bytes + 2 bytes = 11 bytes, logically right?
 	// BUT it's actually using 16 bytes because CPU uses 32-bit (on x86) or 4 bytes even for char (1 byte) because it's easier for it to deal
 	// with memory in groups of 4 bytes, it adds padding, even though some bytes will never be used
+
+	// BUT
+	// the compiler will pack things more neatly like in this instance:
+	// the size will be thus 6 bytes: 2 + 2 + 1 + 1
+	// the only caveat is that the smaller types have to come last, if not, the total size will be 8 bytes
+	
+	//struct projectile
+	//{
+	//	short unsigned IsThisOnFire;
+	//	short Damage;
+	//	char ParticlePerSecond;
+	//	char HowManyCooks; 
+	//};
 };
 
 int CALLBACK WinMain(
