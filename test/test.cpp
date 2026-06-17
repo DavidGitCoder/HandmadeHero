@@ -73,6 +73,8 @@ int CALLBACK WinMain(
 		//
 		//006FFC4C = 16*16*16*16*16*6 + 16*16*16*16*15 + 16*16*16*15 + 16*16*12 + 16*4 + 12
 
+	// also if 2 bytes are: low byte = 1 high byte = 240 then to calculate the decimal value do: 240*256 + 1
+
 	projectile Test;
 
 	int SizeOfChar = sizeof(char unsigned);
