@@ -173,13 +173,13 @@ int CALLBACK WinMain(
 
 	// DEREFERECING A POINTER
 	// to get the value of an address the pointer is pointing to:
-	int x = 5;
-	int* ptr = &x;
-	int y = (*ptr); // y = 5
+	int t = 5;
+	int* ptr = &t;
+	int u = (*ptr); // y = 5
 
 	// POINTER OF POINTER
 	int** ptrptr = &ptr;
-	y = (**ptrptr);
+	u = (**ptrptr);
 
 
 }
