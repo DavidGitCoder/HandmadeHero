@@ -72,6 +72,15 @@ int CALLBACK WinMain(HINSTANCE Instance,
 		     0,
 		     Instance,
 		     0);
+    if(WindowHandle)
+      {
+	// start a message loop
+	
+      }
+    else
+      {
+	// TODO: failed creating window
+      }
   }
   else
   {
