@@ -32,7 +32,8 @@ global_variable HDC BitmapDeviceContext;
 // That's the name Windows uses to talk about things
 // we can write into as bitmaps it can then display using Gdi32.lib
 // this function resizes the DIB or initializes it
-internal void Win32ResizeDIBSection(int Width, int Height)
+internal void
+Win32ResizeDIBSection(int Width, int Height)
 {
   // TODO: Bulletproof this.
   // Maybe don't free first, free after, then free first if that fails.
@@ -42,12 +43,16 @@ internal void Win32ResizeDIBSection(int Width, int Height)
   {
     DeleteObject(BitmapHandle);
   }
-  else
+  
+  if(!BitmapDeviceContext)
   {
+    // TODO: Should we recreate these under certain special circumstances?
+    
     // Ask Windows to create a memory device context (something we use to draw)
     // that's compatible with our current application's screen
-    HDC BitmapDeviceContext = CreateCompatibleDC(0);
+    BitmapDeviceContext = CreateCompatibleDC(0);
   }
+  
   // the description of the bitmap
   BitmapInfo.bmiHeader.biSize = sizeof(BitmapInfo.bmiHeader); // size of the headers
   BitmapInfo.bmiHeader.biWidth = Width;
@@ -65,7 +70,8 @@ internal void Win32ResizeDIBSection(int Width, int Height)
 				  0, 0);
 }
 
-internal void Win32UpdateWindow(HDC DeviceContext, int X, int Y, int Width, int Height)
+internal void
+Win32UpdateWindow(HDC DeviceContext, int X, int Y, int Width, int Height)
 {
   // X = left (Windows convention)
   // Y = top  
@@ -79,10 +85,11 @@ internal void Win32UpdateWindow(HDC DeviceContext, int X, int Y, int Width, int 
 }
 
 
-LRESULT CALLBACK Win32MainWindowCallback(HWND Window,
-					 UINT Message,
-					 WPARAM WParam,
-					 LPARAM LParam)
+LRESULT CALLBACK
+Win32MainWindowCallback(HWND Window,
+			UINT Message,
+			WPARAM WParam,
+			LPARAM LParam)
 {
   LRESULT Result = 0;
   switch(Message) 
@@ -92,6 +99,7 @@ LRESULT CALLBACK Win32MainWindowCallback(HWND Window,
 	//brakets are used to prevent variables from propagating
 	RECT ClientRect;
 	// the client is the drawing area of a window (borders and menu bars are not included)
+	// get size of the window
 	GetClientRect(Window, &ClientRect);
 	int Height =  ClientRect.right - ClientRect.left;
 	int Width =   ClientRect.bottom - ClientRect.top;
