@@ -13,31 +13,91 @@
 // global : globally accessible (automatically initialized to 0)
 #define internal static  
 #define local_persist static 
-#define global_variable static 
+#define global_variable static
+
 // a static variable  is:
 //   Created only once
 //   Keeps its value between function calls
 //   Exists for the lifetime of the program
 // TODO: This is a global for now
-global_variable bool Running;
+global_variable bool Running; 
+global_variable BITMAPINFO BitmapInfo; // set all fields to 0
+// BitmapMemory is what we'll receive back from Windows that we can draw into
+// OUR PIXEL BUFFER 
+global_variable void* BitmapMemory;
+global_variable HBITMAP BitmapHandle;
+global_variable HDC BitmapDeviceContext;
 
 // DIB: Device Independent Bitmap.
-// That's the name Windows uses to talk about things we can write into
-internal void ResizeDIBSection()
+// That's the name Windows uses to talk about things
+// we can write into as bitmaps it can then display using Gdi32.lib
+// this function resizes the DIB or initializes it
+internal void Win32ResizeDIBSection(int Width, int Height)
 {
+  // TODO: Bulletproof this.
+  // Maybe don't free first, free after, then free first if that fails.
+
+  // TODO: Free our DIBSection
+  if(BitmapHandle)
+  {
+    DeleteObject(BitmapHandle);
+  }
+  else
+  {
+    // Ask Windows to create a memory device context (something we use to draw)
+    // that's compatible with our current application's screen
+    HDC BitmapDeviceContext = CreateCompatibleDC(0);
+  }
+  // the description of the bitmap
+  BitmapInfo.bmiHeader.biSize = sizeof(BitmapInfo.bmiHeader); // size of the headers
+  BitmapInfo.bmiHeader.biWidth = Width;
+  BitmapInfo.bmiHeader.biHeight = Height;
+  BitmapInfo.bmiHeader.biPlanes = 1;
+  BitmapInfo.bmiHeader.biBitCount = 32; // nb of bits per color= 2^32 colors
+  BitmapInfo.bmiHeader.biCompression = BI_RGB;
+  
+  // Creates a bitmap that's suitable to use with our device context  
+  BitmapHandle = CreateDIBSection(
+				  BitmapDeviceContext,
+				  &BitmapInfo, // BITMAPINFO*, the address of the struct is passed
+				  DIB_RGB_COLORS,
+				  &BitmapMemory, // void**, the address of the pointer is passed
+				  0, 0);
 }
 
-LRESULT CALLBACK MainWindowCallback(HWND Window,
-				    UINT Message,
-				    WPARAM WParam,
-				    LPARAM LParam)
+internal void Win32UpdateWindow(HDC DeviceContext, int X, int Y, int Width, int Height)
+{
+  // X = left (Windows convention)
+  // Y = top  
+  // Rectangle to rectangle copy
+   StretchDIBits(DeviceContext,
+		 X, Y, Width, Height, // destination: rectangle Windows wants us to fill
+		 X, Y, Width, Height, // source: smae size as destination for now
+		 BitmapMemory,
+		 &BitmapInfo,
+		 DIB_RGB_COLORS, SRCCOPY);
+}
+
+
+LRESULT CALLBACK Win32MainWindowCallback(HWND Window,
+					 UINT Message,
+					 WPARAM WParam,
+					 LPARAM LParam)
 {
   LRESULT Result = 0;
   switch(Message) 
   {
     case WM_SIZE:
-      { //brakets are used to prevent variables from propagating
-	OutputDebugStringA("WM_SIZE\n");
+      {
+	//brakets are used to prevent variables from propagating
+	RECT ClientRect;
+	// the client is the drawing area of a window (borders and menu bars are not included)
+	GetClientRect(Window, &ClientRect);
+	int Height =  ClientRect.right - ClientRect.left;
+	int Width =   ClientRect.bottom - ClientRect.top;
+	// forces to match DIB to the window size - it creates the buffer we'll draw to
+	Win32ResizeDIBSection(Width, Height);
+
       }break; // Casey prefers the break outside
     case WM_DESTROY:
       {
@@ -58,7 +118,7 @@ LRESULT CALLBACK MainWindowCallback(HWND Window,
       }break;
     case WM_PAINT: 
       {
-	// paints
+	// copy to the client (DIB) what's in the buffer
 	PAINTSTRUCT Paint;
 	HDC DeviceContext = BeginPaint(Window, &Paint);
 	// get the returned RECT struct from the PAINTSTRUCT
@@ -67,23 +127,10 @@ LRESULT CALLBACK MainWindowCallback(HWND Window,
 	int Y = Rectangle.top;
 	int Height =  Rectangle.right - Rectangle.left;
 	int Width =   Rectangle.bottom - Rectangle.top;
-
-	// we're playing with the background color
-	// static here means we want the variable to persist akin to a global variable but within this case's scope
-	// only use when debugging
-	// it initializes only once
-	local_persist DWORD Operation = WHITENESS;
-	// The PatBlt function paints the specified rectangle using the brush 
-	// that is currently selected into the specified device context. 
-	// The brush color and the surface color or colors are combined by using the specified raster operation.
-	PatBlt(DeviceContext, X, Y, Width, Height, Operation);
-
-	// Toggle operation for next call
-	Operation = (Operation == WHITENESS) ? BLACKNESS : WHITENESS;
-
+	
+	Win32UpdateWindow(DeviceContext, X, Y, Width, Height);
+	
         EndPaint(Window, &Paint); 
-
-        return 0L; 
       }break;
     default:
       {
@@ -108,7 +155,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
   //  WindowClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW; <-- not needed
 
   // callback called when Windows needs to send a message to have it do something
-  WindowClass.lpfnWndProc = MainWindowCallback;  
+  WindowClass.lpfnWndProc = Win32MainWindowCallback;  
   WindowClass.hInstance = Instance;
   WindowClass.lpszClassName = "HandmadeHeroWidowClass";
   
