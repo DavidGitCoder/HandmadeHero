@@ -59,7 +59,8 @@ Win32ResizeDIBSection(int Width, int Height)
   // the description of the bitmap
   BitmapInfo.bmiHeader.biSize = sizeof(BitmapInfo.bmiHeader); // size of the headers
   BitmapInfo.bmiHeader.biWidth = BitmapWidth;
-  BitmapInfo.bmiHeader.biHeight = -BitmapHeight; // if negative then StretchDIBits will create a top-down image which is preferrable
+  // if biHeight is negative then StretchDIBits will create a top-down image which is preferrable
+  BitmapInfo.bmiHeader.biHeight = -BitmapHeight; 
   BitmapInfo.bmiHeader.biPlanes = 1;
   // nb of bits per color= 2^32 colors, 8-bit red, 8-bit green, 8-bit blue, 8-bit for padding
   BitmapInfo.bmiHeader.biBitCount = 32;
