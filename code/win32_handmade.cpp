@@ -8,6 +8,27 @@
 #include <Windows.h>
 #include <stdint.h>
 
+// WM_SIZE
+//     |
+//     v
+// Create pixel buffer
+//     |
+//     v
+// BitmapMemory exists
+
+// WM_PAINT
+//     |
+//     v
+// Copy BitmapMemory to screen
+////////////////////////////////////////////////
+// in computer graphics a screen coordinates is:
+// (0,0) -----------------> x
+// |
+// |
+// |
+// v
+// y
+
 // static can have different meanings
 // internal: can define a function as being local to the file that it's in
 // local : only exists within its function scope but retains its value
@@ -15,8 +36,11 @@
 #define internal static  
 #define local_persist static 
 #define global_variable static
-
+// uint8 is an alias for unsigned 8-bit integer
 typedef uint8_t uint8;
+typedef uint16_t uint16;
+typedef uint32_t uint32;
+typedef uint64_t uint64;
 // a static variable  is:
 //   Created only once
 //   Keeps its value between function calls
@@ -29,7 +53,54 @@ global_variable BITMAPINFO BitmapInfo; // set all fields to 0
 global_variable void* BitmapMemory;
 global_variable int BitmapWidth;
 global_variable int BitmapHeight;
+// we allocate our own memory
+// pixel size is 4 bytes (RGB+padding)
+global_variable int BytesPerPixel = 4;
 
+internal void
+RenderWeirdGradient(int XOffset, int YOffset)
+{
+  int Width =  BitmapWidth;
+  int Height = BitmapHeight;
+  // Pitch is the size of a row, 1 pixel = 4 bytes
+  int Pitch = Width * BytesPerPixel;
+  // willwe want to move through the buffer 1 byte at a time
+  uint8* Row = (uint8*) BitmapMemory;
+
+  for(int Y = 0; Y < BitmapHeight; ++Y)
+  {
+    uint32* Pixel = (uint32*) Row;
+    // uint8* Pixel = (uint8*) Row;
+    for(int X = 0; X < BitmapWidth; ++X)
+      {
+	/*
+	  Pixel in memory (hex): 00 00 00 00
+	  RR GG BB xx
+	  Little ENDIAN architecture (smaller byte first): BBGGRRxx
+	  But when loading 32-bit integers, the architecture is actually
+	  // in big ENDIAN: xxRRGGBB
+	 */
+	uint8 Blue = (X + XOffset); // blue, (uint8) means we just want the first byte of X (255 values possible)
+	uint8 Green = (Y + YOffset);
+	
+	*Pixel++ = ((Green << 8) | Blue);
+	
+	// Pixel++ is a post increment operator similar to ++Pixel after assigning a color
+	//++Pixel; 
+	
+	// *Pixel = (uint8)(Y + YOffset);
+	// ++Pixel;
+	
+	// *Pixel = 0;
+	// ++Pixel;
+	
+	// *Pixel = 0;
+	// ++Pixel;
+      }
+    Row += Pitch;
+  }
+  
+}
 
 // DIB: Device Independent Bitmap.
 // That's the name Windows uses to talk about things
@@ -46,50 +117,32 @@ Win32ResizeDIBSection(int Width, int Height)
       VirtualFree(BitmapMemory, 0, MEM_RELEASE); 
     }
 
-  // in computer graphics a screen coordinates is:
-  // (0,0) -----------------> x
-  // |
-  // |
-  // |
-  // v
-  // y
   BitmapWidth = Width;
   BitmapHeight = Height;
   
   // the description of the bitmap
   BitmapInfo.bmiHeader.biSize = sizeof(BitmapInfo.bmiHeader); // size of the headers
   BitmapInfo.bmiHeader.biWidth = BitmapWidth;
-  BitmapInfo.bmiHeader.biHeight = -BitmapHeight; // if negative then StretchDIBits will create a top-down image which is preferrable
+  // if biHeight is negative then StretchDIBits will create a top-down image which is preferrable
+  BitmapInfo.bmiHeader.biHeight = -BitmapHeight; 
   BitmapInfo.bmiHeader.biPlanes = 1;
   // nb of bits per color= 2^32 colors, 8-bit red, 8-bit green, 8-bit blue, 8-bit for padding
   BitmapInfo.bmiHeader.biBitCount = 32;
   BitmapInfo.bmiHeader.biCompression = BI_RGB;
 
-  // we allocate our own memory
-  // pixel size is 4 bytes (RGB+padding)
-  int BytesPerPixel = 4;
   int BitmapMemorySize = (BitmapWidth * BitmapHeight) * BytesPerPixel;
   // VirtualAlloc() =>  allocates a certain number of memory pages
   BitmapMemory = VirtualAlloc(0, BitmapMemorySize, MEM_COMMIT, PAGE_READWRITE);
 
-  uint8* Row = (uint8*) BitmapMemory; // uint8 is an alias for unsigned 8-bit integer
-  // will move through the buffer 1 byte at a time
-  for(int Y = 0; Y < BitmapHeight; ++Y)
-  {
-    for(int X = 0; X < BitmapWidth; ++X)
-      {
-	
-      }
-  }
-  
+  //TODO: probably clear this to black
 }
 
 internal void
-Win32UpdateWindow(HDC DeviceContext, RECT* WindowRect, int X, int Y, int Width, int Height)
+Win32UpdateWindow(HDC DeviceContext, RECT* ClientRect, int X, int Y, int Width, int Height)
 {
 
-  int WindowWidth = WindowRect->right - WindowRect->left;
-  int WindowHeight = WindowRect->bottom - WindowRect->top;
+  int WindowWidth = ClientRect->right - ClientRect->left;
+  int WindowHeight = ClientRect->bottom - ClientRect->top;
   // X = left (Windows convention)
   // Y = top  
   // Rectangle to rectangle copy
@@ -101,18 +154,6 @@ Win32UpdateWindow(HDC DeviceContext, RECT* WindowRect, int X, int Y, int Width, 
 		 DIB_RGB_COLORS, SRCCOPY);
 }
 
-// WM_SIZE
-//     |
-//     v
-// Create pixel buffer
-//     |
-//     v
-// BitmapMemory exists
-
-// WM_PAINT
-//     |
-//     v
-// Copy BitmapMemory to screen
 LRESULT CALLBACK
 Win32MainWindowCallback(HWND Window,
 			UINT Message,
@@ -200,7 +241,7 @@ int CALLBACK WinMain(HINSTANCE Instance,
   // returns an Atom but won't be needed 
   if(RegisterClassA(&WindowClass))
   {
-    HWND WindowHandle =
+    HWND Window =
       CreateWindowExA(
 		     0,
 		     WindowClass.lpszClassName,
@@ -214,26 +255,41 @@ int CALLBACK WinMain(HINSTANCE Instance,
 		     0,
 		     Instance,
 		     0);
-    if(WindowHandle)
+    if(Window)
       {
+	int XOffset = 0;
+	int YOffset = 0;
 	// start a message loop
 	Running = true;
 	while(Running)
+	{
+	  
+	  MSG Message;
+	  while(PeekMessage(&Message, 0, 0, 0, PM_REMOVE))
 	  {
-	    MSG Message;
-	    BOOL MessageResult = GetMessageA(&Message,0, 0,0); //loops until it returns false
-		if (MessageResult > 0)
-		  { 
-		    TranslateMessage(&Message);
-		    // calls our callback MainWindowCallback() but Windows can call our callback function
-		    // outside of this function
-		    DispatchMessageA(&Message); 
-		  }
-		else // in case the handler is invalid
-		  {
-		    break;
-		  }
+	      if(Message.message == WM_QUIT)
+	      {
+		Running = false;
+	      }
+	      
+	      TranslateMessage(&Message);
+	      // calls our callback MainWindowCallback() but Windows can call our callback function
+	      // outside of this function
+	      DispatchMessageA(&Message); 
 	  }
+	  
+	  RenderWeirdGradient(XOffset, YOffset);
+	  
+	  HDC DeviceContext = GetDC(Window);
+	  RECT ClientRect;
+	  GetClientRect(Window, &ClientRect);
+	  int WindowWidth = ClientRect.right - ClientRect.left;
+	  int WindowHeight = ClientRect.bottom - ClientRect.top;
+	  Win32UpdateWindow(DeviceContext, &ClientRect, 0, 0, WindowWidth, WindowHeight);
+	  ReleaseDC(Window, DeviceContext);
+	  
+	  ++XOffset;
+	}
       }
     else
       {
