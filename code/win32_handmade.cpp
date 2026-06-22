@@ -36,6 +36,12 @@
 #define internal static  
 #define local_persist static 
 #define global_variable static
+
+typedef int8_t int8;
+typedef int16_t int16;
+typedef int32_t int32;
+typedef int64_t int64;
+
 // uint8 is an alias for unsigned 8-bit integer
 typedef uint8_t uint8;
 typedef uint16_t uint16;
@@ -58,7 +64,7 @@ global_variable int BitmapHeight;
 global_variable int BytesPerPixel = 4;
 
 internal void
-RenderWeirdGradient(int XOffset, int YOffset)
+RenderWeirdGradient(int BlueOffset, int GreenOffset)
 {
   int Width =  BitmapWidth;
   int Height = BitmapHeight;
@@ -80,10 +86,12 @@ RenderWeirdGradient(int XOffset, int YOffset)
 	  But when loading 32-bit integers, the architecture is actually
 	  // in big ENDIAN: xxRRGGBB
 	 */
-	uint8 Blue = (X + XOffset); // blue, (uint8) means we just want the first byte of X (255 values possible)
-	uint8 Green = (Y + YOffset);
-	
-	*Pixel++ = ((Green << 8) | Blue);
+	uint8 Blue = (X + BlueOffset); // uint8 means we just want the first byte of X (255 values possible)
+	uint8 Green = (Y + GreenOffset); // small types get promoted to int in memory
+
+	// Green gets moved 8 bits left inside the 4-bytes
+	// We dereference Pixels to write to where it's pointing
+	*Pixel++ = ((Green << 8) | Blue); /// 00000000 00000000 00000000 00000000 | 00000000 00000000 00000000 000000
 	
 	// Pixel++ is a post increment operator similar to ++Pixel after assigning a color
 	//++Pixel; 
@@ -138,11 +146,11 @@ Win32ResizeDIBSection(int Width, int Height)
 }
 
 internal void
-Win32UpdateWindow(HDC DeviceContext, RECT* ClientRect, int X, int Y, int Width, int Height)
+Win32UpdateWindow(HDC DeviceContext, RECT ClientRect, int X, int Y, int Width, int Height)
 {
 
-  int WindowWidth = ClientRect->right - ClientRect->left;
-  int WindowHeight = ClientRect->bottom - ClientRect->top;
+  int WindowWidth = ClientRect.right - ClientRect.left;
+  int WindowHeight = ClientRect.bottom - ClientRect.top;
   // X = left (Windows convention)
   // Y = top  
   // Rectangle to rectangle copy
@@ -163,8 +171,10 @@ Win32MainWindowCallback(HWND Window,
   LRESULT Result = 0;
   switch(Message) 
   {
+    
     case WM_SIZE:
       {
+	OutputDebugStringA("WM_SIZE\n");
 	//brakets are used to prevent variables from propagating
 	RECT ClientRect;
 	// the client is the drawing area of a window (borders and menu bars are not included)
@@ -176,6 +186,7 @@ Win32MainWindowCallback(HWND Window,
 	Win32ResizeDIBSection(Width, Height);
 
       }break; // Casey prefers the break outside
+      
     case WM_DESTROY:
       {
 	// TODO: Handle this as an error - recreate window?
@@ -193,8 +204,10 @@ Win32MainWindowCallback(HWND Window,
       {
 	OutputDebugStringA("WM_ACTIVATEAPP\n");
       }break;
+      
     case WM_PAINT: 
       {
+	OutputDebugStringA("WM_PAINT\n");
 	// copy to the client (DeviceContext) what's in the buffer (DIB)
 	PAINTSTRUCT Paint;
 	HDC DeviceContext = BeginPaint(Window, &Paint);
@@ -203,16 +216,18 @@ Win32MainWindowCallback(HWND Window,
 	int Width = Paint.rcPaint.right - Paint.rcPaint.left;
 	int Height = Paint.rcPaint.bottom - Paint.rcPaint.top;
 
-	// get the returned RECT struct from the PAINTSTRUCT
+	// get the canvas size
 	RECT ClientRect;
 	// returns the entire client area of the window
 	GetClientRect(Window, &ClientRect);
+	Win32UpdateWindow(DeviceContext, ClientRect, X, Y, Width, Height);
+        EndPaint(Window, &Paint);
 	
-	Win32UpdateWindow(DeviceContext, &ClientRect, X, Y, Width, Height);
-        EndPaint(Window, &Paint); 
       }break;
-    default:
+
+  default:
       {
+	OutputDebugStringA("WM_PAINT\n");
 	// Calls the default window procedure to provide default processing 
 	// for any window messages that an application does not process
 	Result = DefWindowProcA(Window,Message,WParam,LParam);
@@ -230,10 +245,9 @@ int CALLBACK WinMain(HINSTANCE Instance,
   // WNDCLASS is a struct (lookup tagWNDCLASS)
   WNDCLASS WindowClass = {}; // initialize to 0 every bytes
   
-  // check if CS_OWNDC|CS_HREDRAW|CS_VREDRAW still matter per Casey
-  //  WindowClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW; <-- not needed
-
-  // callback called when Windows needs to send a message to have it do something
+  // CS_HREDRAW|CS_VREDRAW indicate Windows it needs to repaint the whole window when it's resized
+  WindowClass.style = CS_HREDRAW | CS_VREDRAW;
+  // callback for when Windows needs to send a message to have it do something
   WindowClass.lpfnWndProc = Win32MainWindowCallback;  
   WindowClass.hInstance = Instance;
   WindowClass.lpszClassName = "HandmadeHeroWidowClass";
@@ -259,11 +273,11 @@ int CALLBACK WinMain(HINSTANCE Instance,
       {
 	int XOffset = 0;
 	int YOffset = 0;
+	
 	// start a message loop
 	Running = true;
 	while(Running)
 	{
-	  
 	  MSG Message;
 	  while(PeekMessage(&Message, 0, 0, 0, PM_REMOVE))
 	  {
@@ -277,7 +291,8 @@ int CALLBACK WinMain(HINSTANCE Instance,
 	      // outside of this function
 	      DispatchMessageA(&Message); 
 	  }
-	  
+
+	  // Create the bitmap
 	  RenderWeirdGradient(XOffset, YOffset);
 	  
 	  HDC DeviceContext = GetDC(Window);
@@ -285,10 +300,11 @@ int CALLBACK WinMain(HINSTANCE Instance,
 	  GetClientRect(Window, &ClientRect);
 	  int WindowWidth = ClientRect.right - ClientRect.left;
 	  int WindowHeight = ClientRect.bottom - ClientRect.top;
-	  Win32UpdateWindow(DeviceContext, &ClientRect, 0, 0, WindowWidth, WindowHeight);
+	  Win32UpdateWindow(DeviceContext, ClientRect, 0, 0, WindowWidth, WindowHeight);
 	  ReleaseDC(Window, DeviceContext);
 	  
 	  ++XOffset;
+	  ++YOffset;
 	}
       }
     else
